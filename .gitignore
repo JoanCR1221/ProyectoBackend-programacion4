@@ -29,3 +29,7 @@ Thumbs.db
 # If you keep secrets or sensitive files, add them here.
 # Example: appsettings.secrets.json
 appsettings.*.local.json
+
+
+appsettings.Development.json
+appsettings.Development.json
