@@ -1,14 +1,17 @@
+using HackerRank1.Data;
 using HackerRank1.Entities;
 using HackerRank1.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace LibraryService.WebAPI
 {
@@ -23,7 +26,7 @@ namespace LibraryService.WebAPI
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // 1. jwtSettings binding
+            // 1. JWT Settings
             var jwtSettings = Configuration
                                 .GetSection("JwtSettings")
                                 .Get<JwtSettings>()
@@ -33,7 +36,13 @@ namespace LibraryService.WebAPI
             services.AddSingleton(jwtSettings);
             services.AddScoped<IAuthenticationService, AuthenticationService>();
 
-            // 3. Configurar Authenticacion
+            // 3. Inventario
+            services.AddDbContext<InventarioContext>(options =>
+                options.UseInMemoryDatabase("inventariodb"));
+            services.AddScoped<IProductoService, ProductoService>();
+            services.AddScoped<IMovimientoService, MovimientoService>();
+
+            // 4. Autenticación JWT
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(option =>
                 {
@@ -53,18 +62,45 @@ namespace LibraryService.WebAPI
                     };
                 });
 
-            // 4. Configurar Autorizacion
+            // 5. Autorización
             services.AddAuthorization();
 
-            services.AddControllers();
+            services.AddControllers()
+                .AddJsonOptions(options =>
+                    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
+            // 6. Swagger con soporte JWT
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
                     Title = "ProyectoBackend API",
                     Version = "v1",
-                    Description = "Backend API con autenticación JWT"
+                    Description = "Backend API con autenticación JWT y gestión de inventario"
+                });
+
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    In = ParameterLocation.Header,
+                    Description = "Ingrese el token como: Bearer {token}",
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer"
+                });
+
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
                 });
             });
         }
