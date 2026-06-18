@@ -26,6 +26,23 @@ Thumbs.db
 # Logs
 *.log
 
-# If you keep secrets or sensitive files, add them here.
-# Example: appsettings.secrets.json
+# Configuration local (cada desarrollador tiene el suyo)
+# IMPORTANTE: No commitear appsettings.*.local.json ni appsettings.Development.json con valores reales
+HackerRank1/appsettings.Development.json
+HackerRank1/appsettings.*.local.json
+appsettings.Development.json
 appsettings.*.local.json
+
+# Secrets de .NET (user-secrets)
+HackerRank1/Properties/launchSettings.json
+
+# EF Core Migrations temporary files
+HackerRank1/Migrations/*.Designer.cs
+
+# Archivos de base de datos local
+*.db
+*.sqlite
+*.sqlite3
+
+# Archivos temporales de prueba
+SEED_USUARIOS_PRUEBA.sql
