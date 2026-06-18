@@ -26,15 +26,20 @@ Thumbs.db
 # Logs
 *.log
 
-# Configuration local (cada desarrollador tiene el suyo)
-# IMPORTANTE: No commitear appsettings.*.local.json ni appsettings.Development.json con valores reales
+# Configuration local (CRÍTICO: cada desarrollador tiene el suyo con sus credenciales)
+# NO COMMITEAR nunca estos archivos con valores reales
 HackerRank1/appsettings.Development.json
 HackerRank1/appsettings.*.local.json
 appsettings.Development.json
 appsettings.*.local.json
+**/**/appsettings.Development.json
+**/**/appsettings.*.local.json
 
-# Secrets de .NET (user-secrets)
+# Secrets de .NET (user-secrets - siempre local)
 HackerRank1/Properties/launchSettings.json
+**/Properties/launchSettings.json
+HackerRank1/secrets.json
+**/secrets.json
 
 # EF Core Migrations temporary files
 HackerRank1/Migrations/*.Designer.cs
@@ -44,5 +49,11 @@ HackerRank1/Migrations/*.Designer.cs
 *.sqlite
 *.sqlite3
 
-# Archivos temporales de prueba
+# Archivos temporales de prueba y ejemplos locales
 SEED_USUARIOS_PRUEBA.sql
+*.postman_environment.json
+local-*.md
+
+# Entity Framework
+HackerRank1/Migrations/*/
+!HackerRank1/Migrations/
