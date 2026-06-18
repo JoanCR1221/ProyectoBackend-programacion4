@@ -125,7 +125,10 @@ namespace LibraryService.WebAPI
                 });
             }
 
-            app.UseHttpsRedirection();
+            // Sin redirección HTTPS en la fase de desarrollo: cuando la API corre sobre http
+            // (sin puerto https configurado), el redirect rompe el "Try it out" de Swagger
+            // y las llamadas del frontend con "Failed to fetch / URL scheme must be http or https".
+            // app.UseHttpsRedirection();
 
             app.UseRouting();
 
