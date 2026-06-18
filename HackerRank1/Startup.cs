@@ -1,3 +1,4 @@
+using HackerRank1.Context;
 using HackerRank1.Data;
 using HackerRank1.Entities;
 using HackerRank1.Services;
@@ -10,10 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System;
 using System.Text;
-using System.Text.Json.Serialization;
-
-using HackerRank1.Context;
 
 namespace LibraryService.WebAPI
 {
@@ -28,11 +27,61 @@ namespace LibraryService.WebAPI
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<AppDbContext>(options =>
-              options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
+            // ============================================================
+            // JWT (compartido por todos los módulos: este token sirve tanto
+            // para autorización por permisos -Acceso/Roles- como por roles
+            // -Authorize(Roles = ...)- usado en inventario/beneficiarios/etc.)
+            // ============================================================
+            var jwtSettings = new JwtSettings();
+            Configuration.GetSection("JwtSettings").Bind(jwtSettings);
 
             var allowedOrigins = Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
                                  ?? new[] { "http://localhost:5219" };
+
+            services.AddSingleton(jwtSettings);
+
+            // ============================================================
+            // Módulo Acceso y Roles (EF Core InMemory: sin BD real, igual que
+            // los demás contextos en memoria, para que el equipo levante todo
+            // sin depender de PostgreSQL). El catálogo se siembra vía HasData y
+            // el superusuario en Program.cs al iniciar.
+            // ============================================================
+            services.AddDbContext<SigacDbContext>(options =>
+                options.UseInMemoryDatabase("sigacdb"));
+
+            services.AddScoped<IAuthenticationService, AuthenticationService>();
+            services.AddScoped<IPermisoService, PermisoService>();
+            services.AddScoped<IRolService, RolService>();
+            services.AddScoped<IUsuarioService, UsuarioService>();
+
+            // ============================================================
+            // Módulo Gastos (BD principal PostgreSQL / Supabase)
+            // ============================================================
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
+            services.AddScoped<IGastoService, GastoService>();
+
+            // ============================================================
+            // Módulo Inventario (EF Core InMemory)
+            // ============================================================
+            services.AddDbContext<InventarioContext>(options =>
+                options.UseInMemoryDatabase("inventariodb"));
+            services.AddScoped<IProductoService, ProductoService>();
+            services.AddScoped<IMovimientoService, MovimientoService>();
+
+            // ============================================================
+            // Módulo Beneficiarios y Asistencia (EF Core InMemory)
+            // ============================================================
+            services.AddDbContext<BeneficiariosContext>(options =>
+                options.UseInMemoryDatabase("beneficiariosdb"));
+            services.AddScoped<IBeneficiariosService, BeneficiariosService>();
+            services.AddScoped<IAsistenciaService, AsistenciaService>();
+
+            // ============================================================
+            // CORS (una sola política para el frontend)
+            // ============================================================
+            var allowedOrigins = Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                                 ?? new[] { "http://localhost:5173", "http://localhost:5174", "http://localhost:5219" };
 
             services.AddCors(options =>
             {
@@ -40,35 +89,14 @@ namespace LibraryService.WebAPI
                 {
                     policy.WithOrigins(allowedOrigins)
                           .AllowAnyHeader()
-                          .AllowAnyMethod();
+                          .AllowAnyMethod()
+                          .AllowCredentials();
                 });
             });
 
-            // 1. JWT Settings
-            var jwtSettings = Configuration
-                                .GetSection("JwtSettings")
-                                .Get<JwtSettings>()
-                                ?? throw new InvalidOperationException("Invalid JWT Settings");
-
-           
-            services.AddSingleton(jwtSettings);
-            services.AddScoped<IAuthenticationService, AuthenticationService>();
-
-            // 3. Inventario
-            services.AddDbContext<InventarioContext>(options =>
-                options.UseInMemoryDatabase("inventariodb"));
-            services.AddScoped<IProductoService, ProductoService>();
-            services.AddScoped<IMovimientoService, MovimientoService>();
-
-            // 4. Beneficiarios y Asistencia
-            services.AddDbContext<BeneficiariosContext>(options =>
-                options.UseInMemoryDatabase("beneficiariosdb"));
-            services.AddScoped<IBeneficiariosService, BeneficiariosService>();
-            services.AddScoped<IAsistenciaService, AsistenciaService>();
-
-            // 5. Autenticación JWT
-            services.AddScoped<IGastoService, GastoService>();
-            
+            // ============================================================
+            // Autenticación / Autorización JWT
+            // ============================================================
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(option =>
                 {
@@ -88,23 +116,24 @@ namespace LibraryService.WebAPI
                     };
                 });
 
-            // 6. Autorización
             services.AddAuthorization();
 
             services.AddControllers()
-                 .AddJsonOptions(opts =>
-                 {
-                     opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-                 });
+                .AddJsonOptions(opts =>
+                {
+                    opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                });
 
-            // 7. Swagger con soporte JWT
+            // ============================================================
+            // Swagger
+            // ============================================================
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
-                    Title = "ProyectoBackend API",
+                    Title = "SIGAC API",
                     Version = "v1",
-                    Description = "Backend API con autenticación JWT y gestión de inventario"
+                    Description = "Backend API del SIGAC: autenticación JWT, acceso/roles, inventario, beneficiarios, gastos y donaciones"
                 });
 
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -130,7 +159,6 @@ namespace LibraryService.WebAPI
                         Array.Empty<string>()
                     }
                 });
-               
             });
         }
 
@@ -144,12 +172,18 @@ namespace LibraryService.WebAPI
 
                 app.UseSwaggerUI(c =>
                 {
-                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ProyectoBackend API v1");
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SIGAC API v1");
                 });
             }
 
+            // Sin redirección HTTPS en la fase de desarrollo: cuando la API corre sobre http
+            // (sin puerto https configurado), el redirect rompe el "Try it out" de Swagger
+            // y las llamadas del frontend con "Failed to fetch / URL scheme must be http or https".
+            // app.UseHttpsRedirection();
+
             app.UseRouting();
 
+            // Aplicar CORS antes de Auth
             app.UseCors("FrontendPolicy");
 
             app.UseAuthentication();
