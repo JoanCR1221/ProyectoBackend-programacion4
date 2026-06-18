@@ -1,11 +1,13 @@
 using HackerRank1.DTO;
 using HackerRank1.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HackerRank1.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Super usuario")]
 public class BeneficiariosController : ControllerBase
 {
     private readonly IBeneficiariosService _service;

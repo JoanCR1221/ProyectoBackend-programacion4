@@ -1,10 +1,12 @@
 using HackerRank1.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HackerRank1.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Super usuario,Administrador")]
 public class AsistenciaController : ControllerBase
 {
     private readonly IAsistenciaService _service;
