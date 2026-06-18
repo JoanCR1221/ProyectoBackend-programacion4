@@ -1,13 +1,17 @@
 ﻿
+using HackerRank1.DTO;
+using HackerRank1.Filters;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Linq;
-using HackerRank1.DTO;
 
 namespace HackerRank1.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+
+    [Authorize]
     public class DonacionesController : ControllerBase
     {
         private static List<DonacionDTO> donaciones = new();
@@ -19,8 +23,23 @@ namespace HackerRank1.Controllers
         }
 
         [HttpPost]
+        [TienePermiso("donaciones.crear")]
         public IActionResult Create([FromBody] DonacionDTO dto)
         {
+
+            var permisos = User.FindAll("permiso").Select(p => p.Value).ToList();
+
+            //  usuario normal -- solo transferencia
+            if (permisos.Contains("donaciones.crear") &&
+                !permisos.Contains("donaciones.gestionar"))
+            {
+                if (dto.Tipo != "Transferencia")
+                {
+                    return StatusCode(403, new { mensaje = "Solo puede realizar transferencias" });
+                }
+            }
+
+
             // Validaciones básicas
             if (string.IsNullOrEmpty(dto.Tipo))
                 return BadRequest("El tipo es obligatorio");
