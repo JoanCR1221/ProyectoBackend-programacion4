@@ -21,12 +21,77 @@ namespace HackerRank1.Controllers
         [HttpPost]
         public IActionResult Create([FromBody] DonacionDTO dto)
         {
+            // Validaciones básicas
+            if (string.IsNullOrEmpty(dto.Tipo))
+                return BadRequest("El tipo es obligatorio");
+
+            if (string.IsNullOrEmpty(dto.Donante))
+                return BadRequest("El donante es obligatorio");
+
+            if (dto.Fecha == default)
+                return BadRequest("La fecha es obligatoria");
+
+
+            // Validaciones por tipo
+
+            // DINERO
+            if (dto.Tipo == "Dinero")
+            {
+                if (dto.Monto == null || dto.Monto <= 0)
+                    return BadRequest("El monto debe ser mayor a 0");
+
+                // limpiar campos innecesarios
+                dto.Descripcion = null;
+                dto.Cantidad = null;
+                dto.Unidad = null;
+                dto.Banco = null;
+                dto.NumeroTransaccion = null;
+            }
+
+            // ESPECIE
+            else if (dto.Tipo == "Especie")
+            {
+                if (string.IsNullOrEmpty(dto.Descripcion) || dto.Cantidad == null || dto.Cantidad <= 0)
+                    return BadRequest("Datos de especie incompletos");
+
+                dto.Monto = null;
+                dto.Banco = null;
+                dto.NumeroTransaccion = null;
+            }
+
+            // TRANSFERENCIA
+            else if (dto.Tipo == "Transferencia")
+            {
+                if (dto.Monto == null || dto.Monto <= 0 ||
+                    string.IsNullOrEmpty(dto.Banco) ||
+                    string.IsNullOrEmpty(dto.NumeroTransaccion))
+                {
+                    return BadRequest("Datos de transferencia incompletos");
+                }
+
+                dto.Descripcion = null;
+                dto.Cantidad = null;
+                dto.Unidad = null;
+            }
+
+            else
+            {
+                return BadRequest("Tipo de donación no válido");
+            }
+
+
+            // Generar ID
             dto.Id = donaciones.Count > 0 ? donaciones.Max(d => d.Id) + 1 : 1;
+
+            // Estado inicial
             dto.Anulado = false;
 
+            // Guardar
             donaciones.Add(dto);
+
             return Ok(dto);
         }
+
 
 
 
