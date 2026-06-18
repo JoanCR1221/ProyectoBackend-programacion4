@@ -1,4 +1,4 @@
-using HackerRank1.Context;
+
 using HackerRank1.Entities;
 using HackerRank1.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,6 +11,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+
+using HackerRank1.Context;
 
 namespace LibraryService.WebAPI
 {
@@ -25,7 +27,7 @@ namespace LibraryService.WebAPI
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // 1. CORS para el frontend React
+           
             var allowedOrigins = Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
                                  ?? new[] { "http://localhost:5173" };
 
@@ -39,20 +41,20 @@ namespace LibraryService.WebAPI
                 });
             });
 
-            // 2. EF Core con Supabase (PostgreSQL)
+            
             services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
-            // 3. JwtSettings binding
+           
             var jwtSettings = Configuration
                                 .GetSection("JwtSettings")
                                 .Get<JwtSettings>()
                                 ?? throw new InvalidOperationException("Invalid JWT Settings");
 
-            // 4. Registro de DI
+           
             services.AddSingleton(jwtSettings);
             services.AddScoped<IAuthenticationService, AuthenticationService>();
             services.AddScoped<IGastoService, GastoService>();
-            // 5. Configurar Authenticacion
+            
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(option =>
                 {
@@ -72,7 +74,7 @@ namespace LibraryService.WebAPI
                     };
                 });
 
-            // 6. Configurar Autorizacion
+            
             services.AddAuthorization();
 
             services.AddControllers()
