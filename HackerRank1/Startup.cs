@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System;
 
 namespace LibraryService.WebAPI
 {
@@ -24,10 +25,16 @@ namespace LibraryService.WebAPI
         public void ConfigureServices(IServiceCollection services)
         {
             // 1. jwtSettings binding
-            var jwtSettings = Configuration
-                                .GetSection("JwtSettings")
-                                .Get<JwtSettings>()
-                                ?? throw new InvalidOperationException("Invalid JWT Settings");
+
+
+            var jwtSettings = new JwtSettings();
+            Configuration.GetSection("JwtSettings").Bind(jwtSettings);
+
+            if (string.IsNullOrEmpty(jwtSettings.SecretKey))
+            {
+                throw new Exception("JWT SecretKey no configurada");
+            }
+
 
             // 2. Registro de DI
             services.AddSingleton(jwtSettings);
@@ -58,6 +65,21 @@ namespace LibraryService.WebAPI
 
             services.AddControllers();
 
+
+            services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend",
+                    builder =>
+                    {
+                        builder
+                            .WithOrigins("http://localhost:5174") //frontend
+                            .AllowAnyHeader()
+                            .AllowAnyMethod();
+                    });
+            });
+
+
+
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo
@@ -84,6 +106,8 @@ namespace LibraryService.WebAPI
             }
 
             app.UseRouting();
+
+            app.UseCors("AllowFrontend");
 
             app.UseAuthentication();
             app.UseAuthorization();
