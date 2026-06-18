@@ -1,52 +1,93 @@
 using HackerRank1.Data;
 using HackerRank1.DTO;
+using Microsoft.EntityFrameworkCore;
 
 namespace HackerRank1.Services;
 
-/// <summary>Implementación EN MEMORIA (sin base de datos).</summary>
 public class UsuarioService : IUsuarioService
 {
-    private readonly InMemoryStore _store;
+    private readonly SigacDbContext _context;
 
-    public UsuarioService(InMemoryStore store)
+    public UsuarioService(SigacDbContext context)
     {
-        _store = store;
+        _context = context;
     }
 
-    public Task<List<UsuarioResponse>> ObtenerTodosAsync()
+    public async Task<List<UsuarioResponse>> ObtenerTodosAsync()
     {
-        var usuarios = _store.Usuarios.Select(MapToResponse).ToList();
-        return Task.FromResult(usuarios);
+        var usuarios = await _context.Usuarios
+            .Include(u => u.Rol)
+            .Select(u => new UsuarioResponse
+            {
+                Id = u.Id,
+                Nombre = u.Nombre,
+                Email = u.Email,
+                Rol = u.Rol.Nombre,
+                Activo = u.Activo,
+                CreadoEn = u.CreadoEn
+            })
+            .ToListAsync();
+
+        return usuarios;
     }
 
-    public Task<UsuarioResponse?> ObtenerPorIdAsync(int id)
+    public async Task<UsuarioResponse?> ObtenerPorIdAsync(int id)
     {
-        var usuario = _store.Usuarios.FirstOrDefault(u => u.Id == id);
-        return Task.FromResult(usuario == null ? null : MapToResponse(usuario));
+        var usuario = await _context.Usuarios
+            .Where(u => u.Id == id)
+            .Include(u => u.Rol)
+            .Select(u => new UsuarioResponse
+            {
+                Id = u.Id,
+                Nombre = u.Nombre,
+                Email = u.Email,
+                Rol = u.Rol.Nombre,
+                Activo = u.Activo,
+                CreadoEn = u.CreadoEn
+            })
+            .FirstOrDefaultAsync();
+
+        return usuario;
     }
 
-    public Task<UsuarioResponse?> ObtenerPorEmailAsync(string email)
+    public async Task<UsuarioResponse?> ObtenerPorEmailAsync(string email)
     {
-        var usuario = _store.Usuarios
-            .FirstOrDefault(u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase));
-        return Task.FromResult(usuario == null ? null : MapToResponse(usuario));
+        var usuario = await _context.Usuarios
+            .Where(u => u.Email == email)
+            .Include(u => u.Rol)
+            .Select(u => new UsuarioResponse
+            {
+                Id = u.Id,
+                Nombre = u.Nombre,
+                Email = u.Email,
+                Rol = u.Rol.Nombre,
+                Activo = u.Activo,
+                CreadoEn = u.CreadoEn
+            })
+            .FirstOrDefaultAsync();
+
+        return usuario;
     }
 
-    public Task CambiarEstadoAsync(int id, bool activo)
+    public async Task CambiarEstadoAsync(int id, bool activo)
     {
-        var usuario = _store.Usuarios.FirstOrDefault(u => u.Id == id)
+        var usuario = await _context.Usuarios.FindAsync(id)
             ?? throw new InvalidOperationException("Usuario no encontrado");
 
         usuario.Activo = activo;
-        return Task.CompletedTask;
+        _context.Usuarios.Update(usuario);
+        await _context.SaveChangesAsync();
     }
 
-    public Task AsignarRolAsync(int usuarioId, int rolId, List<string> permisosDelActor)
+    public async Task AsignarRolAsync(int usuarioId, int rolId, List<string> permisosDelActor)
     {
-        var usuario = _store.Usuarios.FirstOrDefault(u => u.Id == usuarioId)
+        var usuario = await _context.Usuarios.FindAsync(usuarioId)
             ?? throw new InvalidOperationException("Usuario no encontrado");
 
-        var rol = _store.Roles.FirstOrDefault(r => r.Id == rolId)
+        var rol = await _context.Roles
+            .Include(r => r.RolPermisos)
+            .ThenInclude(rp => rp.Permiso)
+            .FirstOrDefaultAsync(r => r.Id == rolId)
             ?? throw new InvalidOperationException("Rol no encontrado");
 
         // Anti-escalamiento: asignar un rol otorga al usuario todos los permisos de ese rol.
@@ -63,17 +104,7 @@ public class UsuarioService : IUsuarioService
                 string.Join(", ", permisosNoAutorizados));
 
         usuario.RolId = rolId;
-        usuario.Rol = rol;
-        return Task.CompletedTask;
+        _context.Usuarios.Update(usuario);
+        await _context.SaveChangesAsync();
     }
-
-    private static UsuarioResponse MapToResponse(Entities.Usuario usuario) => new()
-    {
-        Id = usuario.Id,
-        Nombre = usuario.Nombre,
-        Email = usuario.Email,
-        Rol = usuario.Rol.Nombre,
-        Activo = usuario.Activo,
-        CreadoEn = usuario.CreadoEn
-    };
 }

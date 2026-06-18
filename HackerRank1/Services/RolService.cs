@@ -1,114 +1,155 @@
 using HackerRank1.Data;
 using HackerRank1.DTO;
 using HackerRank1.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace HackerRank1.Services;
 
-/// <summary>Implementación EN MEMORIA (sin base de datos).</summary>
 public class RolService : IRolService
 {
-    private readonly InMemoryStore _store;
+    private readonly SigacDbContext _context;
 
-    public RolService(InMemoryStore store)
+    public RolService(SigacDbContext context)
     {
-        _store = store;
+        _context = context;
     }
 
-    public Task<List<RolResponse>> ObtenerTodosAsync()
+    public async Task<List<RolResponse>> ObtenerTodosAsync()
     {
-        var roles = _store.Roles.Select(MapToResponse).ToList();
-        return Task.FromResult(roles);
+        var roles = await _context.Roles
+            .Include(r => r.RolPermisos)
+            .ThenInclude(rp => rp.Permiso)
+            .Select(r => new RolResponse
+            {
+                Id = r.Id,
+                Nombre = r.Nombre,
+                Descripcion = r.Descripcion,
+                CreadoEn = r.CreadoEn,
+                Permisos = r.RolPermisos.Select(rp => new PermisoResponse
+                {
+                    Id = rp.Permiso.Id,
+                    Clave = rp.Permiso.Clave,
+                    Descripcion = rp.Permiso.Descripcion
+                }).ToList()
+            })
+            .ToListAsync();
+
+        return roles;
     }
 
-    public Task<RolResponse?> ObtenerPorIdAsync(int id)
+    public async Task<RolResponse?> ObtenerPorIdAsync(int id)
     {
-        var rol = _store.Roles.FirstOrDefault(r => r.Id == id);
-        return Task.FromResult(rol == null ? null : MapToResponse(rol));
+        var rol = await _context.Roles
+            .Where(r => r.Id == id)
+            .Include(r => r.RolPermisos)
+            .ThenInclude(rp => rp.Permiso)
+            .Select(r => new RolResponse
+            {
+                Id = r.Id,
+                Nombre = r.Nombre,
+                Descripcion = r.Descripcion,
+                CreadoEn = r.CreadoEn,
+                Permisos = r.RolPermisos.Select(rp => new PermisoResponse
+                {
+                    Id = rp.Permiso.Id,
+                    Clave = rp.Permiso.Clave,
+                    Descripcion = rp.Permiso.Descripcion
+                }).ToList()
+            })
+            .FirstOrDefaultAsync();
+
+        return rol;
     }
 
-    public Task<RolResponse> CrearAsync(string nombre, string descripcion, List<int> permisoIds, List<string> permisosDelActor)
+    public async Task<RolResponse> CrearAsync(string nombre, string descripcion, List<int> permisoIds, List<string> permisosDelActor)
     {
-        if (_store.Roles.Any(r => r.Nombre == nombre))
+        var rolExistente = await _context.Roles.FirstOrDefaultAsync(r => r.Nombre == nombre);
+        if (rolExistente != null)
             throw new InvalidOperationException($"El rol '{nombre}' ya existe");
 
-        var permisosValidados = ValidarPermisos(permisoIds, permisosDelActor);
+        // Resolver y validar los permisos solicitados (anti-escalamiento) antes de crear nada.
+        var permisosValidados = await ValidarPermisosAsync(permisoIds, permisosDelActor);
 
         var rol = new Rol
         {
-            Id = _store.NextRolId(),
             Nombre = nombre,
             Descripcion = descripcion,
             CreadoEn = DateTime.UtcNow
         };
-        _store.Roles.Add(rol);
 
-        AsignarPermisos(rol, permisosValidados);
+        _context.Roles.Add(rol);
+        await _context.SaveChangesAsync();
 
-        return Task.FromResult(MapToResponse(rol));
+        foreach (var permisoId in permisosValidados)
+        {
+            _context.RolPermisos.Add(new RolPermiso { RolId = rol.Id, PermisoId = permisoId });
+        }
+
+        await _context.SaveChangesAsync();
+
+        return await ObtenerPorIdAsync(rol.Id) ?? throw new InvalidOperationException("Error al crear rol");
     }
 
-    public Task<RolResponse> ActualizarAsync(int id, string nombre, string descripcion, List<int> permisoIds, List<string> permisosDelActor)
+    public async Task<RolResponse> ActualizarAsync(int id, string nombre, string descripcion, List<int> permisoIds, List<string> permisosDelActor)
     {
-        var rol = _store.Roles.FirstOrDefault(r => r.Id == id)
+        var rol = await _context.Roles
+            .Include(r => r.RolPermisos)
+            .FirstOrDefaultAsync(r => r.Id == id)
             ?? throw new InvalidOperationException("Rol no encontrado");
 
-        var permisosValidados = ValidarPermisos(permisoIds, permisosDelActor);
+        var permisosValidados = await ValidarPermisosAsync(permisoIds, permisosDelActor);
 
         rol.Nombre = nombre;
         rol.Descripcion = descripcion;
 
         // Reemplazar el conjunto de permisos del rol.
-        _store.RolPermisos.RemoveAll(rp => rp.RolId == rol.Id);
-        rol.RolPermisos.Clear();
+        _context.RolPermisos.RemoveRange(rol.RolPermisos);
 
-        AsignarPermisos(rol, permisosValidados);
+        foreach (var permisoId in permisosValidados)
+        {
+            _context.RolPermisos.Add(new RolPermiso { RolId = rol.Id, PermisoId = permisoId });
+        }
 
-        return Task.FromResult(MapToResponse(rol));
+        await _context.SaveChangesAsync();
+
+        return await ObtenerPorIdAsync(rol.Id) ?? throw new InvalidOperationException("Error al actualizar rol");
     }
 
-    public Task EliminarAsync(int id)
+    public async Task EliminarAsync(int id)
     {
-        var rol = _store.Roles.FirstOrDefault(r => r.Id == id)
+        var rol = await _context.Roles.FindAsync(id)
             ?? throw new InvalidOperationException("Rol no encontrado");
 
-        if (_store.Usuarios.Any(u => u.RolId == id))
+        var usuariosConRol = await _context.Usuarios.CountAsync(u => u.RolId == id);
+        if (usuariosConRol > 0)
             throw new InvalidOperationException("No se puede eliminar un rol que tiene usuarios asignados");
 
-        _store.RolPermisos.RemoveAll(rp => rp.RolId == id);
-        _store.Roles.Remove(rol);
-
-        return Task.CompletedTask;
-    }
-
-    private void AsignarPermisos(Rol rol, List<int> permisoIds)
-    {
-        foreach (var permisoId in permisoIds)
-        {
-            var permiso = _store.Permisos.First(p => p.Id == permisoId);
-            var rp = new RolPermiso { RolId = rol.Id, PermisoId = permisoId, Rol = rol, Permiso = permiso };
-            _store.RolPermisos.Add(rp);
-            rol.RolPermisos.Add(rp);
-            permiso.RolPermisos.Add(rp);
-        }
+        _context.Roles.Remove(rol);
+        await _context.SaveChangesAsync();
     }
 
     /// <summary>
-    /// Resuelve los IDs de permisos, valida que existan y aplica anti-escalamiento:
+    /// Resuelve los IDs de permisos a sus claves, valida que existan y aplica anti-escalamiento:
     /// el actor NO puede otorgar ningún permiso que él mismo no posea.
+    /// Devuelve la lista deduplicada de IDs válidos.
     /// </summary>
-    private List<int> ValidarPermisos(List<int> permisoIds, List<string> permisosDelActor)
+    private async Task<List<int>> ValidarPermisosAsync(List<int> permisoIds, List<string> permisosDelActor)
     {
         var idsUnicos = permisoIds.Distinct().ToList();
         if (idsUnicos.Count == 0)
             return idsUnicos;
 
-        var permisos = _store.Permisos.Where(p => idsUnicos.Contains(p.Id)).ToList();
+        var permisos = await _context.Permisos
+            .Where(p => idsUnicos.Contains(p.Id))
+            .ToListAsync();
 
+        // Validar que todos los IDs solicitados existan.
         var idsEncontrados = permisos.Select(p => p.Id).ToHashSet();
         var idsInexistentes = idsUnicos.Where(id => !idsEncontrados.Contains(id)).ToList();
         if (idsInexistentes.Count > 0)
             throw new InvalidOperationException($"Permisos inexistentes: {string.Join(", ", idsInexistentes)}");
 
+        // Anti-escalamiento: cada permiso a otorgar debe estar dentro de los permisos del actor.
         var permisosDelActorSet = permisosDelActor.ToHashSet();
         var noAutorizados = permisos
             .Where(p => !permisosDelActorSet.Contains(p.Clave))
@@ -121,18 +162,4 @@ public class RolService : IRolService
 
         return idsUnicos;
     }
-
-    private static RolResponse MapToResponse(Rol rol) => new()
-    {
-        Id = rol.Id,
-        Nombre = rol.Nombre,
-        Descripcion = rol.Descripcion,
-        CreadoEn = rol.CreadoEn,
-        Permisos = rol.RolPermisos.Select(rp => new PermisoResponse
-        {
-            Id = rp.Permiso.Id,
-            Clave = rp.Permiso.Clave,
-            Descripcion = rp.Permiso.Descripcion
-        }).ToList()
-    };
 }
