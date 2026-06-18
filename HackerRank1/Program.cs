@@ -11,6 +11,13 @@ namespace LibraryService.WebAPI
 {
     public class Program
     {
+        // Credenciales QUEMADAS del superusuario inicial. Sirven como fallback para que
+        // todo el equipo tenga acceso completo al clonar el repo, sin configurar nada.
+        // En produccion se sobreescriben con SuperusuarioSeed:Email / :Password
+        // (appsettings, user-secrets o variables de entorno) y DEBEN cambiarse.
+        private const string SuperEmailPorDefecto = "super@sigac.cr";
+        private const string SuperPasswordPorDefecto = "Sigac.Super2024!";
+
         public static void Main(string[] args)
         {
             var host = CreateHostBuilder(args).Build();
@@ -45,17 +52,14 @@ namespace LibraryService.WebAPI
         {
             try
             {
+                // Usar la config si existe; si no, caer al superusuario quemado por defecto.
                 var superEmail = configuration["SuperusuarioSeed:Email"];
                 var superPassword = configuration["SuperusuarioSeed:Password"];
 
-                if (string.IsNullOrEmpty(superEmail) || string.IsNullOrEmpty(superPassword))
-                {
-                    logger.LogWarning(
-                        "SuperusuarioSeed no configurado. Configura con: " +
-                        "dotnet user-secrets set SuperusuarioSeed:Email <email> " +
-                        "y dotnet user-secrets set SuperusuarioSeed:Password <password>");
-                    return;
-                }
+                if (string.IsNullOrEmpty(superEmail))
+                    superEmail = SuperEmailPorDefecto;
+                if (string.IsNullOrEmpty(superPassword))
+                    superPassword = SuperPasswordPorDefecto;
 
                 var superusuarioExistente = dbContext.Usuarios
                     .Include(u => u.Rol)
