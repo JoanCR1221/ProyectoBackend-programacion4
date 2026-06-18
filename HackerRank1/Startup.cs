@@ -4,7 +4,6 @@ using HackerRank1.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -31,15 +30,9 @@ namespace LibraryService.WebAPI
                                 .Get<JwtSettings>()
                                 ?? throw new InvalidOperationException("Invalid JWT Settings");
 
-            // 2. DbContext - PostgreSQL con Supabase
-            var connectionString = Configuration.GetConnectionString("Supabase")
-                ?? throw new InvalidOperationException("Connection string 'Supabase' not found");
-
-            services.AddDbContext<SigacDbContext>(options =>
-                options.UseNpgsql(connectionString, npgsqlOptions =>
-                {
-                    npgsqlOptions.MigrationsHistoryTable("__ef_migrations_history", "public");
-                }));
+            // 2. Almacén EN MEMORIA (reemplaza a SigacDbContext durante la fase sin BD).
+            //    Singleton: los datos (catálogo + superusuario) viven mientras corra el proceso.
+            services.AddSingleton<InMemoryStore>();
 
             // 3. Registro de DI
             services.AddSingleton(jwtSettings);

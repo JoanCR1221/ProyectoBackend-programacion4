@@ -1,35 +1,35 @@
 using HackerRank1.Data;
 using HackerRank1.DTO;
-using Microsoft.EntityFrameworkCore;
 
 namespace HackerRank1.Services;
 
+/// <summary>Implementación EN MEMORIA (sin base de datos).</summary>
 public class PermisoService : IPermisoService
 {
-    private readonly SigacDbContext _context;
+    private readonly InMemoryStore _store;
 
-    public PermisoService(SigacDbContext context)
+    public PermisoService(InMemoryStore store)
     {
-        _context = context;
+        _store = store;
     }
 
-    public async Task<List<PermisoResponse>> ObtenerTodosAsync()
+    public Task<List<PermisoResponse>> ObtenerTodosAsync()
     {
-        var permisos = await _context.Permisos
+        var permisos = _store.Permisos
             .Select(p => new PermisoResponse
             {
                 Id = p.Id,
                 Clave = p.Clave,
                 Descripcion = p.Descripcion
             })
-            .ToListAsync();
+            .ToList();
 
-        return permisos;
+        return Task.FromResult(permisos);
     }
 
-    public async Task<PermisoResponse?> ObtenerPorIdAsync(int id)
+    public Task<PermisoResponse?> ObtenerPorIdAsync(int id)
     {
-        var permiso = await _context.Permisos
+        var permiso = _store.Permisos
             .Where(p => p.Id == id)
             .Select(p => new PermisoResponse
             {
@@ -37,21 +37,17 @@ public class PermisoService : IPermisoService
                 Clave = p.Clave,
                 Descripcion = p.Descripcion
             })
-            .FirstOrDefaultAsync();
+            .FirstOrDefault();
 
-        return permiso;
+        return Task.FromResult(permiso);
     }
 
-    public async Task<List<string>> ObtenerPermisosDeUsuarioAsync(int usuarioId)
+    public Task<List<string>> ObtenerPermisosDeUsuarioAsync(int usuarioId)
     {
-        var permisos = await _context.Usuarios
-            .Where(u => u.Id == usuarioId)
-            .Include(u => u.Rol)
-            .ThenInclude(r => r.RolPermisos)
-            .ThenInclude(rp => rp.Permiso)
-            .SelectMany(u => u.Rol.RolPermisos.Select(rp => rp.Permiso.Clave))
-            .ToListAsync();
+        var usuario = _store.Usuarios.FirstOrDefault(u => u.Id == usuarioId);
+        var permisos = usuario?.Rol.RolPermisos.Select(rp => rp.Permiso.Clave).ToList()
+            ?? new List<string>();
 
-        return permisos;
+        return Task.FromResult(permisos);
     }
 }

@@ -10,12 +10,15 @@
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.16" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+  </ItemGroup>
+
+  <!-- Capa EF preservada pero DESACTIVADA durante la fase sin base de datos.
+       Para reactivarla en la integración: ver HackerRank1/_EfDisabled/README.md
+       (re-agregar paquetes EF/Npgsql y quitar esta exclusión). -->
+  <ItemGroup>
+    <Compile Remove="_EfDisabled\**\*.cs" />
   </ItemGroup>
 
 </Project>

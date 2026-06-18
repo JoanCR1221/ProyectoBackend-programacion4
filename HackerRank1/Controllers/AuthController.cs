@@ -28,7 +28,9 @@ public class AuthController : ControllerBase
         _jwtSettings = jwtSettings;
     }
 
+    // Doble ruta: /api/auth/login (REST del módulo) y /login (compatibilidad con el frontend actual).
     [HttpPost("login")]
+    [HttpPost("/login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
