@@ -1,15 +1,19 @@
+using HackerRank1.Data;
 using HackerRank1.Entities;
 using HackerRank1.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
 using System;
+using System.Text;
+using System.Text.Json.Serialization;
+using HackerRank1.Context;
 
 namespace LibraryService.WebAPI
 {
@@ -24,9 +28,25 @@ namespace LibraryService.WebAPI
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // 1. jwtSettings binding
+            // BD principal
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
 
+            // CORS (usar solo este)
+            var allowedOrigins = Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                                 ?? new[] { "http://localhost:5174" };
 
+            services.AddCors(options =>
+            {
+                options.AddPolicy("FrontendPolicy", policy =>
+                {
+                    policy.WithOrigins(allowedOrigins)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                });
+            });
+
+            // JWT (única versión correcta)
             var jwtSettings = new JwtSettings();
             Configuration.GetSection("JwtSettings").Bind(jwtSettings);
 
@@ -35,12 +55,25 @@ namespace LibraryService.WebAPI
                 throw new Exception("JWT SecretKey no configurada");
             }
 
-
-            // 2. Registro de DI
             services.AddSingleton(jwtSettings);
             services.AddScoped<IAuthenticationService, AuthenticationService>();
 
-            // 3. Configurar Authenticacion
+            // Inventario
+            services.AddDbContext<InventarioContext>(options =>
+                options.UseInMemoryDatabase("inventariodb"));
+            services.AddScoped<IProductoService, ProductoService>();
+            services.AddScoped<IMovimientoService, MovimientoService>();
+
+            // Beneficiarios
+            services.AddDbContext<BeneficiariosContext>(options =>
+                options.UseInMemoryDatabase("beneficiariosdb"));
+            services.AddScoped<IBeneficiariosService, BeneficiariosService>();
+            services.AddScoped<IAsistenciaService, AsistenciaService>();
+
+            // Gastos
+            services.AddScoped<IGastoService, GastoService>();
+
+            //  Auth JWT
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(option =>
                 {
@@ -60,33 +93,46 @@ namespace LibraryService.WebAPI
                     };
                 });
 
-            // 4. Configurar Autorizacion
             services.AddAuthorization();
 
-            services.AddControllers();
+            services.AddControllers()
+                .AddJsonOptions(opts =>
+                {
+                    opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                });
 
-
-            services.AddCors(options =>
-            {
-                options.AddPolicy("AllowFrontend",
-                    builder =>
-                    {
-                        builder
-                            .WithOrigins("http://localhost:5174") //frontend
-                            .AllowAnyHeader()
-                            .AllowAnyMethod();
-                    });
-            });
-
-
-
+            // Swagger
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
                     Title = "ProyectoBackend API",
                     Version = "v1",
-                    Description = "Backend API con autenticación JWT"
+                    Description = "Backend API con autenticación JWT y gestión de inventario"
+                });
+
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    In = ParameterLocation.Header,
+                    Description = "Ingrese el token como: Bearer {token}",
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer"
+                });
+
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
                 });
             });
         }
@@ -107,7 +153,8 @@ namespace LibraryService.WebAPI
 
             app.UseRouting();
 
-            app.UseCors("AllowFrontend");
+            //  SOLO UNA VEZ
+            app.UseCors("FrontendPolicy");
 
             app.UseAuthentication();
             app.UseAuthorization();
