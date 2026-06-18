@@ -24,9 +24,9 @@ public class AuthController : Controller
 
     [HttpPost("/login")]
     [AllowAnonymous]
-    public async Task<IActionResult> Login(User user) 
+    public async Task<IActionResult> Login(LoginForm form)
     {
-        var validuser = await authenticationService.AuthenticateAsync(user.Email, user.Password);
+        var validuser = await authenticationService.AuthenticateAsync(form.Email, form.Password);
         if (validuser is null)
             return Unauthorized();
 
