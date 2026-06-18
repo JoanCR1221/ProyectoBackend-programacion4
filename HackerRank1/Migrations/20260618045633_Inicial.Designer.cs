@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HackerRank1.Migrations
 {
     [DbContext(typeof(SigacDbContext))]
-    [Migration("20260618043707_Inicial")]
+    [Migration("20260618045633_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -20,7 +20,7 @@ namespace HackerRank1.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("ProductVersion", "8.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
