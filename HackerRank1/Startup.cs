@@ -1,8 +1,10 @@
+using HackerRank1.Data;
 using HackerRank1.Entities;
 using HackerRank1.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -29,11 +31,24 @@ namespace LibraryService.WebAPI
                                 .Get<JwtSettings>()
                                 ?? throw new InvalidOperationException("Invalid JWT Settings");
 
-            // 2. Registro de DI
+            // 2. DbContext - PostgreSQL con Supabase
+            var connectionString = Configuration.GetConnectionString("Supabase")
+                ?? throw new InvalidOperationException("Connection string 'Supabase' not found");
+
+            services.AddDbContext<SigacDbContext>(options =>
+                options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.MigrationsHistoryTable("__ef_migrations_history", "public");
+                }));
+
+            // 3. Registro de DI
             services.AddSingleton(jwtSettings);
             services.AddScoped<IAuthenticationService, AuthenticationService>();
+            services.AddScoped<IPermisoService, PermisoService>();
+            services.AddScoped<IRolService, RolService>();
+            services.AddScoped<IUsuarioService, UsuarioService>();
 
-            // 3. Configurar Authenticacion
+            // 4. Configurar Authenticacion
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(option =>
                 {
@@ -53,8 +68,22 @@ namespace LibraryService.WebAPI
                     };
                 });
 
-            // 4. Configurar Autorizacion
+            // 5. Configurar Autorizacion
             services.AddAuthorization();
+
+            // 6. CORS
+            var allowedOrigins = Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:5173" };
+            services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend", builder =>
+                {
+                    builder
+                        .WithOrigins(allowedOrigins)
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials();
+                });
+            });
 
             services.AddControllers();
 
@@ -62,9 +91,29 @@ namespace LibraryService.WebAPI
             {
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
-                    Title = "ProyectoBackend API",
+                    Title = "SIGAC - Acceso y Roles API",
                     Version = "v1",
-                    Description = "Backend API con autenticación JWT"
+                    Description = "Backend API de gestión de acceso, roles y permisos para el SIGAC"
+                });
+
+                // Agregar soporte para JWT en Swagger
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    Description = "Ingrese el token JWT"
+                });
+
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                        },
+                        new string[] { }
+                    }
                 });
             });
         }
@@ -79,11 +128,16 @@ namespace LibraryService.WebAPI
 
                 app.UseSwaggerUI(c =>
                 {
-                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ProyectoBackend API v1");
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SIGAC - Acceso y Roles API v1");
                 });
             }
 
+            app.UseHttpsRedirection();
+
             app.UseRouting();
+
+            // Aplicar CORS antes de Auth
+            app.UseCors("AllowFrontend");
 
             app.UseAuthentication();
             app.UseAuthorization();
