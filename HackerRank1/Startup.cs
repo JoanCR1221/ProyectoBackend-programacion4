@@ -35,8 +35,7 @@ namespace LibraryService.WebAPI
             var jwtSettings = new JwtSettings();
             Configuration.GetSection("JwtSettings").Bind(jwtSettings);
 
-            var allowedOrigins = Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                                 ?? new[] { "http://localhost:5219" };
+            
 
             services.AddSingleton(jwtSettings);
 
@@ -58,7 +57,7 @@ namespace LibraryService.WebAPI
             // Módulo Gastos (BD principal PostgreSQL / Supabase)
             // ============================================================
             services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
+               options.UseInMemoryDatabase("gastosdb"));
             services.AddScoped<IGastoService, GastoService>();
 
             // ============================================================
