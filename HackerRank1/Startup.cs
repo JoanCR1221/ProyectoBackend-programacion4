@@ -13,6 +13,8 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Text.Json.Serialization;
 
+using HackerRank1.Context;
+
 namespace LibraryService.WebAPI
 {
     public class Startup
@@ -26,13 +28,29 @@ namespace LibraryService.WebAPI
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddDbContext<AppDbContext>(options =>
+              options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
+
+            var allowedOrigins = Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                                 ?? new[] { "http://localhost:5173" };
+
+            services.AddCors(options =>
+            {
+                options.AddPolicy("FrontendPolicy", policy =>
+                {
+                    policy.WithOrigins(allowedOrigins)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                });
+            });
+
             // 1. JWT Settings
             var jwtSettings = Configuration
                                 .GetSection("JwtSettings")
                                 .Get<JwtSettings>()
                                 ?? throw new InvalidOperationException("Invalid JWT Settings");
 
-            // 2. Registro de DI
+           
             services.AddSingleton(jwtSettings);
             services.AddScoped<IAuthenticationService, AuthenticationService>();
 
@@ -48,7 +66,9 @@ namespace LibraryService.WebAPI
             services.AddScoped<IBeneficiariosService, BeneficiariosService>();
             services.AddScoped<IAsistenciaService, AsistenciaService>();
 
-            // 4. Autenticación JWT
+            // 5. Autenticación JWT
+            services.AddScoped<IGastoService, GastoService>();
+            
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(option =>
                 {
@@ -68,25 +88,16 @@ namespace LibraryService.WebAPI
                     };
                 });
 
-            // 5. Autorización
+            // 6. Autorización
             services.AddAuthorization();
 
-            // 6. CORS para el frontend React
-            services.AddCors(options =>
-            {
-                options.AddPolicy("FrontendPolicy", policy =>
-                {
-                    policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
-                          .AllowAnyHeader()
-                          .AllowAnyMethod();
-                });
-            });
-
             services.AddControllers()
-                .AddJsonOptions(options =>
-                    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+                 .AddJsonOptions(opts =>
+                 {
+                     opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                 });
 
-            // 6. Swagger con soporte JWT
+            // 7. Swagger con soporte JWT
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo
@@ -119,6 +130,7 @@ namespace LibraryService.WebAPI
                         Array.Empty<string>()
                     }
                 });
+               
             });
         }
 
