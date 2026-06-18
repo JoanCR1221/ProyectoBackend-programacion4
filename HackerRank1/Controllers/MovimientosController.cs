@@ -7,7 +7,7 @@ namespace HackerRank1.Controllers;
 
 [ApiController]
 [Route("api/movimientos")]
-[Authorize]
+[Authorize(Roles = "admin,encargado,consultor")]
 public class MovimientosController : ControllerBase
 {
     private readonly IMovimientoService _movimientoService;
@@ -25,6 +25,7 @@ public class MovimientosController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "admin,encargado")]
     public async Task<IActionResult> Registrar(MovimientoForm form)
     {
         var movimiento = await _movimientoService.RegistrarAsync(form);
