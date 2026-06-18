@@ -80,22 +80,16 @@ public class UsuariosController : ControllerBase
     {
         try
         {
-            // Validar anti-escalamiento: no puede asignar permisos que él no tiene
-            var permisosDelUsuarioActual = await ObtenerPermisosDelUsuarioActual();
-
-            // Si el usuario intenta asignar rol y no tiene "roles.asignar", rechazar
-            // (Ya está cubierto por el atributo, pero lo verificamos en la lógica también)
-            if (!permisosDelUsuarioActual.Contains("roles.asignar"))
-                return Forbid();
-
-            await _usuarioService.AsignarRolAsync(id, request.RolId);
+            // Anti-escalamiento: el actor no puede otorgar (vía el rol) permisos que no posee.
+            var permisosDelActor = await ObtenerPermisosDelUsuarioActual();
+            await _usuarioService.AsignarRolAsync(id, request.RolId, permisosDelActor);
             return Ok(new { mensaje = "Rol asignado correctamente" });
         }
-        catch (InvalidOperationException ex)
+        catch (PermisoDenegadoException ex)
         {
-            return BadRequest(new { mensaje = ex.Message });
+            return StatusCode(StatusCodes.Status403Forbidden, new { mensaje = ex.Message });
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return BadRequest(new { mensaje = ex.Message });
         }

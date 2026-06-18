@@ -41,19 +41,13 @@ HackerRank1/Properties/launchSettings.json
 HackerRank1/secrets.json
 **/secrets.json
 
-# EF Core Migrations temporary files
-HackerRank1/Migrations/*.Designer.cs
-
 # Archivos de base de datos local
 *.db
 *.sqlite
 *.sqlite3
 
 # Archivos temporales de prueba y ejemplos locales
-SEED_USUARIOS_PRUEBA.sql
+# NOTA: los archivos de migración de EF Core (incluidos los *.Designer.cs)
+# SÍ deben versionarse: son código fuente necesario para aplicar el esquema.
 *.postman_environment.json
 local-*.md
-
-# Entity Framework
-HackerRank1/Migrations/*/
-!HackerRank1/Migrations/

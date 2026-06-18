@@ -154,6 +154,10 @@ public class SigacDbContext : DbContext
 
     private void SeedData(ModelBuilder modelBuilder)
     {
+        // Fecha fija para el seed: usar DateTime.UtcNow aquí hace que EF detecte
+        // cambios pendientes en el modelo en cada build. Debe ser un valor estático.
+        var fechaSeed = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
         // Permisos
         var permisos = new[]
         {
@@ -177,9 +181,9 @@ public class SigacDbContext : DbContext
         // Roles
         var roles = new[]
         {
-            new Rol { Id = 1, Nombre = "usuario", Descripcion = "Rol básico de usuario", CreadoEn = DateTime.UtcNow },
-            new Rol { Id = 2, Nombre = "administrador", Descripcion = "Rol de administrador operativo", CreadoEn = DateTime.UtcNow },
-            new Rol { Id = 3, Nombre = "superusuario", Descripcion = "Rol de superusuario con todos los permisos", CreadoEn = DateTime.UtcNow }
+            new Rol { Id = 1, Nombre = "usuario", Descripcion = "Rol básico de usuario", CreadoEn = fechaSeed },
+            new Rol { Id = 2, Nombre = "administrador", Descripcion = "Rol de administrador operativo", CreadoEn = fechaSeed },
+            new Rol { Id = 3, Nombre = "superusuario", Descripcion = "Rol de superusuario con todos los permisos", CreadoEn = fechaSeed }
         };
 
         modelBuilder.Entity<Rol>().HasData(roles);

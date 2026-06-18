@@ -116,9 +116,9 @@ namespace HackerRank1.Migrations
                 columns: new[] { "id", "creado_en", "descripcion", "nombre" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2026, 6, 18, 3, 44, 40, 203, DateTimeKind.Utc).AddTicks(9798), "Rol básico de usuario", "usuario" },
-                    { 2, new DateTime(2026, 6, 18, 3, 44, 40, 204, DateTimeKind.Utc).AddTicks(316), "Rol de administrador operativo", "administrador" },
-                    { 3, new DateTime(2026, 6, 18, 3, 44, 40, 204, DateTimeKind.Utc).AddTicks(318), "Rol de superusuario con todos los permisos", "superusuario" }
+                    { 1, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Rol básico de usuario", "usuario" },
+                    { 2, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Rol de administrador operativo", "administrador" },
+                    { 3, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Rol de superusuario con todos los permisos", "superusuario" }
                 });
 
             migrationBuilder.InsertData(

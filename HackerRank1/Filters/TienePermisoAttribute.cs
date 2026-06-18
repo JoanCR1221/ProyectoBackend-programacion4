@@ -34,7 +34,13 @@ public class TienePermisoAttribute : Attribute, IAuthorizationFilter
 
         if (!tienePermiso)
         {
-            context.Result = new ForbidResult();
+            context.Result = new ObjectResult(new
+            {
+                mensaje = $"No tienes el permiso requerido: '{_permisoRequerido}'"
+            })
+            {
+                StatusCode = StatusCodes.Status403Forbidden
+            };
         }
     }
 }

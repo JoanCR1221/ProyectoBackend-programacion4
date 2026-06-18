@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HackerRank1.Migrations
 {
     [DbContext(typeof(SigacDbContext))]
-    [Migration("20260618034441_Inicial")]
+    [Migration("20260618043707_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -170,21 +170,21 @@ namespace HackerRank1.Migrations
                         new
                         {
                             Id = 1,
-                            CreadoEn = new DateTime(2026, 6, 18, 3, 44, 40, 203, DateTimeKind.Utc).AddTicks(9798),
+                            CreadoEn = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Descripcion = "Rol básico de usuario",
                             Nombre = "usuario"
                         },
                         new
                         {
                             Id = 2,
-                            CreadoEn = new DateTime(2026, 6, 18, 3, 44, 40, 204, DateTimeKind.Utc).AddTicks(316),
+                            CreadoEn = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Descripcion = "Rol de administrador operativo",
                             Nombre = "administrador"
                         },
                         new
                         {
                             Id = 3,
-                            CreadoEn = new DateTime(2026, 6, 18, 3, 44, 40, 204, DateTimeKind.Utc).AddTicks(318),
+                            CreadoEn = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Descripcion = "Rol de superusuario con todos los permisos",
                             Nombre = "superusuario"
                         });

@@ -8,5 +8,5 @@ public interface IUsuarioService
     Task<UsuarioResponse?> ObtenerPorIdAsync(int id);
     Task<UsuarioResponse?> ObtenerPorEmailAsync(string email);
     Task CambiarEstadoAsync(int id, bool activo);
-    Task AsignarRolAsync(int usuarioId, int rolId);
+    Task AsignarRolAsync(int usuarioId, int rolId, List<string> permisosDelActor);
 }

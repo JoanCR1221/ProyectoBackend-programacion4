@@ -57,6 +57,12 @@ public class AuthController : ControllerBase
         if (string.IsNullOrEmpty(request.Nombre) || string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
             return BadRequest(new { mensaje = "Nombre, email y contraseña son requeridos" });
 
+        if (!EsEmailValido(request.Email))
+            return BadRequest(new { mensaje = "El formato del email no es válido" });
+
+        if (request.Password.Length < 8)
+            return BadRequest(new { mensaje = "La contraseña debe tener al menos 8 caracteres" });
+
         try
         {
             var usuario = await _authenticationService.RegistrarAsync(request.Nombre, request.Email, request.Password);
@@ -97,5 +103,18 @@ public class AuthController : ControllerBase
             usuario,
             permisos
         });
+    }
+
+    private static bool EsEmailValido(string email)
+    {
+        try
+        {
+            var direccion = new System.Net.Mail.MailAddress(email);
+            return direccion.Address == email;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 }
