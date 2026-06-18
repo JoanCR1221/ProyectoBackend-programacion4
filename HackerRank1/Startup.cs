@@ -42,6 +42,12 @@ namespace LibraryService.WebAPI
             services.AddScoped<IProductoService, ProductoService>();
             services.AddScoped<IMovimientoService, MovimientoService>();
 
+            // 4. Beneficiarios y Asistencia
+            services.AddDbContext<BeneficiariosContext>(options =>
+                options.UseInMemoryDatabase("beneficiariosdb"));
+            services.AddScoped<IBeneficiariosService, BeneficiariosService>();
+            services.AddScoped<IAsistenciaService, AsistenciaService>();
+
             // 4. Autenticación JWT
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(option =>
@@ -64,6 +70,17 @@ namespace LibraryService.WebAPI
 
             // 5. Autorización
             services.AddAuthorization();
+
+            // 6. CORS para el frontend React
+            services.AddCors(options =>
+            {
+                options.AddPolicy("FrontendPolicy", policy =>
+                {
+                    policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                });
+            });
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -120,6 +137,8 @@ namespace LibraryService.WebAPI
             }
 
             app.UseRouting();
+
+            app.UseCors("FrontendPolicy");
 
             app.UseAuthentication();
             app.UseAuthorization();
