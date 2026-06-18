@@ -1,8 +1,10 @@
+using HackerRank1.Context;
 using HackerRank1.Entities;
 using HackerRank1.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,17 +25,34 @@ namespace LibraryService.WebAPI
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // 1. jwtSettings binding
+            // 1. CORS para el frontend React
+            var allowedOrigins = Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                                 ?? new[] { "http://localhost:5173" };
+
+            services.AddCors(options =>
+            {
+                options.AddPolicy("FrontendPolicy", policy =>
+                {
+                    policy.WithOrigins(allowedOrigins)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                });
+            });
+
+            // 2. EF Core con Supabase (PostgreSQL)
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
+            // 3. JwtSettings binding
             var jwtSettings = Configuration
                                 .GetSection("JwtSettings")
                                 .Get<JwtSettings>()
                                 ?? throw new InvalidOperationException("Invalid JWT Settings");
 
-            // 2. Registro de DI
+            // 4. Registro de DI
             services.AddSingleton(jwtSettings);
             services.AddScoped<IAuthenticationService, AuthenticationService>();
-
-            // 3. Configurar Authenticacion
+            services.AddScoped<IGastoService, GastoService>();
+            // 5. Configurar Authenticacion
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(option =>
                 {
@@ -53,10 +72,14 @@ namespace LibraryService.WebAPI
                     };
                 });
 
-            // 4. Configurar Autorizacion
+            // 6. Configurar Autorizacion
             services.AddAuthorization();
 
-            services.AddControllers();
+            services.AddControllers()
+                 .AddJsonOptions(opts =>
+                 {
+                     opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                 });
 
             services.AddSwaggerGen(c =>
             {
@@ -65,6 +88,24 @@ namespace LibraryService.WebAPI
                     Title = "ProyectoBackend API",
                     Version = "v1",
                     Description = "Backend API con autenticación JWT"
+                });
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header
+                });
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                        },
+                        Array.Empty<string>()
+                    }
                 });
             });
         }
@@ -84,7 +125,7 @@ namespace LibraryService.WebAPI
             }
 
             app.UseRouting();
-
+            app.UseCors("FrontendPolicy");
             app.UseAuthentication();
             app.UseAuthorization();
 
