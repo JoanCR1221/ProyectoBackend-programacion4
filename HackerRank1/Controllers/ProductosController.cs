@@ -7,7 +7,7 @@ namespace HackerRank1.Controllers;
 
 [ApiController]
 [Route("api/productos")]
-[Authorize]
+[Authorize(Roles = "superusuario,administrador,usuario")]
 public class ProductosController : ControllerBase
 {
     private readonly IProductoService _productoService;
@@ -33,6 +33,7 @@ public class ProductosController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "superusuario,administrador")]
     public async Task<IActionResult> Create(ProductoForm form)
     {
         var producto = await _productoService.CreateAsync(form);
@@ -40,6 +41,7 @@ public class ProductosController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "superusuario,administrador")]
     public async Task<IActionResult> Update(string id, ProductoForm form)
     {
         var producto = await _productoService.UpdateAsync(id, form);
@@ -48,6 +50,7 @@ public class ProductosController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "superusuario")]
     public async Task<IActionResult> Delete(string id)
     {
         var deleted = await _productoService.DeleteAsync(id);

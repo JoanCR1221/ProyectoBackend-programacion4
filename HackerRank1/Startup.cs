@@ -35,8 +35,7 @@ namespace LibraryService.WebAPI
             var jwtSettings = new JwtSettings();
             Configuration.GetSection("JwtSettings").Bind(jwtSettings);
 
-            if (string.IsNullOrEmpty(jwtSettings.SecretKey))
-                throw new InvalidOperationException("JWT SecretKey no configurada");
+            
 
             services.AddSingleton(jwtSettings);
 
@@ -58,7 +57,7 @@ namespace LibraryService.WebAPI
             // Módulo Gastos (BD principal PostgreSQL / Supabase)
             // ============================================================
             services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
+               options.UseInMemoryDatabase("gastosdb"));
             services.AddScoped<IGastoService, GastoService>();
 
             // ============================================================
@@ -81,7 +80,7 @@ namespace LibraryService.WebAPI
             // CORS (una sola política para el frontend)
             // ============================================================
             var allowedOrigins = Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                                 ?? new[] { "http://localhost:5173", "http://localhost:5174" };
+                                 ?? new[] { "http://localhost:5173", "http://localhost:5174", "http://localhost:5219" };
 
             services.AddCors(options =>
             {
