@@ -23,6 +23,12 @@
         public DateTime? Fecha { get; set; }
 
         public bool Anulado { get; set; }
+
+
+        public string? Banco { get; set; }
+        public string? NumeroTransaccion { get; set; }
+
+
     }
 
 
