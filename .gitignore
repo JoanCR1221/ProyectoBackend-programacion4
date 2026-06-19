@@ -26,6 +26,28 @@ Thumbs.db
 # Logs
 *.log
 
-# If you keep secrets or sensitive files, add them here.
-# Example: appsettings.secrets.json
+# Configuration local (CRÍTICO: cada desarrollador tiene el suyo con sus credenciales)
+# NO COMMITEAR nunca estos archivos con valores reales
+HackerRank1/appsettings.Development.json
+HackerRank1/appsettings.*.local.json
+appsettings.Development.json
 appsettings.*.local.json
+**/**/appsettings.Development.json
+**/**/appsettings.*.local.json
+
+# Secrets de .NET (user-secrets - siempre local)
+HackerRank1/Properties/launchSettings.json
+**/Properties/launchSettings.json
+HackerRank1/secrets.json
+**/secrets.json
+
+# Archivos de base de datos local
+*.db
+*.sqlite
+*.sqlite3
+
+# Archivos temporales de prueba y ejemplos locales
+# NOTA: los archivos de migración de EF Core (incluidos los *.Designer.cs)
+# SÍ deben versionarse: son código fuente necesario para aplicar el esquema.
+*.postman_environment.json
+local-*.md
